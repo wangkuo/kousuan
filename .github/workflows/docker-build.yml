@@ -1,0 +1,60 @@
+name: Docker Build and Push
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # 获取完整的 git 历史用于生成版本号
+
+      - name: Get version
+        id: get_version
+        run: |
+          # 获取最新的 tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # 获取当前提交的短 hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # 获取当前时间戳
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          # 如果是 tag 触发的构建，使用 tag 作为版本号
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            # 否则使用最新 tag + commit hash + 时间戳
+            VERSION="${LATEST_TAG}-${COMMIT_HASH}-${TIMESTAMP}"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Build the Docker image
+        run: |
+          docker version
+          # 登录阿里云镜像仓库
+          docker login --username=${{ secrets.ALIYUN_REGISTRY_USER }} --password=${{ secrets.ALIYUN_REGISTRY_PASSWORD }} registry.cn-hangzhou.aliyuncs.com
+          
+          VERSION=${{ steps.get_version.outputs.version }}
+          IMAGE_NAME="registry.cn-hangzhou.aliyuncs.com/kyle_mirror/kousuan"
+          
+          # 构建带版本标签的镜像
+          docker build . --file Dockerfile \
+            --tag ${IMAGE_NAME}:${VERSION} \
+            --tag ${IMAGE_NAME}:latest
+          
+          # 推送所有标签
+          docker push ${IMAGE_NAME}:${VERSION}
+          docker push ${IMAGE_NAME}:latest
+          
+          echo "Published images:"
+          echo "  ${IMAGE_NAME}:${VERSION}"
+          echo "  ${IMAGE_NAME}:latest"

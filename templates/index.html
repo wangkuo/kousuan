@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学生口算题目生成器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .settings {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .setting-group {
+            margin-bottom: 15px;
+        }
+        .preview {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .problems {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .problem {
+            font-size: 24px;
+            padding: 9px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        @media print {
+            .settings, button {
+                display: none;
+            }
+            .preview {
+                border: none;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                width: 210mm;
+                height: 297mm;
+            }
+            .problems {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings">
+        <h2>口算题目生成程序 （v<span id="version">{{ version }}</span>）</h2>
+        
+        <div class="setting-group">
+            <h3>数值范围</h3>
+            <label>
+                <input type="radio" name="range" value="10" checked> 10以内
+            </label>
+            <label>
+                <input type="radio" name="range" value="20"> 20以内
+            </label>
+            <label>
+                <input type="radio" name="range" value="50"> 50以内
+            </label>
+            <label>
+                <input type="radio" name="range" value="100"> 100以内
+            </label>
+        </div>
+
+        <div class="setting-group">
+            <h3>运算类型</h3>
+            <label>
+                <input type="checkbox" id="add" checked> 加法
+            </label>
+            <label id="carry-option" style="margin-left: 20px;">
+                <input type="checkbox" id="carry"> 包含进位
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="subtract" checked> 减法
+            </label>
+            <label id="borrow-option" style="margin-left: 20px;">
+                <input type="checkbox" id="borrow"> 包含退位
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="multiply"> 乘法
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="divide"> 除法
+            </label>
+        </div>
+
+        <div class="setting-group">
+            <h3>题型设置</h3>
+            <div>
+                <label>两数运算题目数量：</label>
+                <input type="number" id="type1-count" value="25" min="0" max="50">
+                <label>填空比例：</label>
+                <input type="number" id="type1-blank" value="0.0" min="0" max="1" step="0.1">
+            </div>
+            <div>
+                <label>三数运算题目数量：</label>
+                <input type="number" id="type2-count" value="25" min="0" max="50">
+                <label>填空比例：</label>
+                <input type="number" id="type2-blank" value="0.0" min="0" max="1" step="0.1">
+            </div>
+        </div>
+
+        <button onclick="generateProblems()">生成试题</button>
+    </div>
+
+    <div class="preview" id="preview" style="display: none;">
+        <div class="header">
+            <h1>口算练习（<span id="problem-count">0</span>题）</h1>
+            <div class="info-line">
+                <span>日期：____________</span>
+                <span>姓名：____________</span>
+                <span>得分：____________</span>
+                <span>用时：____________</span>
+            </div>
+        </div>
+        <div class="problems" id="problems"></div>
+    </div>
+
+    <script>
+        // 控制进位/退位选项的显示
+        document.getElementById('add').addEventListener('change', function() {
+            document.getElementById('carry-option').style.display = 
+                this.checked ? 'inline' : 'none';
+        });
+        
+        document.getElementById('subtract').addEventListener('change', function() {
+            document.getElementById('borrow-option').style.display = 
+                this.checked ? 'inline' : 'none';
+        });
+
+        function generateProblems() {
+            const range = document.querySelector('input[name="range"]:checked').value;
+            const add = document.getElementById('add').checked;
+            const subtract = document.getElementById('subtract').checked;
+            const multiply = document.getElementById('multiply').checked;
+            const divide = document.getElementById('divide').checked;
+            const carry = document.getElementById('carry').checked;
+            const borrow = document.getElementById('borrow').checked;
+            const type1Count = document.getElementById('type1-count').value;
+            const type2Count = document.getElementById('type2-count').value;
+            const type1Blank = document.getElementById('type1-blank').value;
+            const type2Blank = document.getElementById('type2-blank').value;
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    range,
+                    add,
+                    subtract,
+                    multiply,
+                    divide,
+                    carry,
+                    borrow,
+                    type1_count: type1Count,
+                    type2_count: type2Count,
+                    type1_blank_ratio: type1Blank,
+                    type2_blank_ratio: type2Blank,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('preview').style.display = 'block';
+                document.getElementById('problem-count').textContent = data.total_problems;
+                
+                const problemsDiv = document.getElementById('problems');
+                problemsDiv.innerHTML = '';
+                
+                data.problems.forEach((problem) => {
+                    const div = document.createElement('div');
+                    div.className = 'problem';
+                    div.textContent = `${problem.problem}`;
+                    problemsDiv.appendChild(div);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('生成题目时出现错误，请重试');
+            });
+        }
+    </script>
+</body>
+</html> 
