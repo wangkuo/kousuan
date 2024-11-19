@@ -4,7 +4,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-VERSION = "1.0.0"  # 定义版本号
+VERSION = "1.0.1"  # 定义版本号
 
 class MathProblemGenerator:
     def __init__(self):
@@ -27,9 +27,17 @@ class MathProblemGenerator:
         """检查减法是否需要退位"""
         return any(int(d1) < int(d2) for d1, d2 in zip(str(a).zfill(2), str(b).zfill(2)))
     
+    def generate_teen_number(self):
+        """生成十几的数字（11-19）"""
+        return random.randint(11, 19)
+    
+    def generate_single_number(self):
+        """生成个位数（1-9）"""
+        return random.randint(1, 9)
+    
     def generate_problem(self, max_value, operators, carry_enabled=False, 
-                        borrow_enabled=False, num_count=2, blank_position=None):
-        # 添加最大重试次数
+                        borrow_enabled=False, num_count=2, blank_position=None,
+                        teen_numbers=False):
         MAX_RETRIES = 100
         retry_count = 0
         
@@ -39,7 +47,10 @@ class MathProblemGenerator:
                 ops = []
                 
                 # 生成第一个数
-                numbers.append(self.generate_number(max_value))
+                if teen_numbers:
+                    numbers.append(self.generate_teen_number())
+                else:
+                    numbers.append(self.generate_number(max_value))
                 
                 # 生成运算符和后续数字
                 for i in range(num_count - 1):
@@ -48,11 +59,14 @@ class MathProblemGenerator:
                     
                     retry_inner = 0
                     while retry_inner < MAX_RETRIES:
-                        next_num = self.generate_number(max_value)
+                        if teen_numbers:
+                            next_num = self.generate_single_number()
+                        else:
+                            next_num = self.generate_number(max_value)
                         
                         # 验证数字是否满足条件
                         if self.validate_number(op, numbers[-1], next_num, max_value, 
-                                             carry_enabled, borrow_enabled):
+                                           carry_enabled, borrow_enabled, teen_numbers):
                             numbers.append(next_num)
                             break
                         retry_inner += 1
@@ -88,7 +102,19 @@ class MathProblemGenerator:
         
         raise ValueError("无法生成满足条件的题目")
 
-    def validate_number(self, op, current_num, next_num, max_value, carry_enabled, borrow_enabled):
+    def validate_number(self, op, current_num, next_num, max_value, carry_enabled, borrow_enabled, teen_numbers=False):
+        if teen_numbers:
+            if op == '+':
+                result = current_num + next_num
+                # 确保结果不超过20且不需要进位
+                return result <= 20 and (current_num % 10 + next_num) < 10
+            elif op == '-':
+                result = current_num - next_num
+                # 确保结果仍然是十几且不需要退位
+                return result >= 10 and (current_num % 10) >= next_num
+            return False
+        
+        # 原有的验证逻辑
         if op == '+':
             if carry_enabled:
                 return self.check_carry(current_num, next_num)
@@ -150,6 +176,9 @@ def generate():
         generator = MathProblemGenerator()
         problems = []
         
+        # 获取是否生成十几加减几的题目
+        teen_numbers = data.get('teen_numbers', False)
+        
         # 生成题目
         type1_count = int(data['type1_count'])
         type2_count = int(data['type2_count'])
@@ -171,7 +200,8 @@ def generate():
                 carry_enabled=data['carry'],
                 borrow_enabled=data['borrow'],
                 num_count=2,
-                blank_position=blank_position
+                blank_position=blank_position,
+                teen_numbers=teen_numbers
             )
             problems.append(problem)
         
@@ -186,7 +216,8 @@ def generate():
                 carry_enabled=data['carry'],
                 borrow_enabled=data['borrow'],
                 num_count=3,
-                blank_position=blank_position
+                blank_position=blank_position,
+                teen_numbers=teen_numbers
             )
             problems.append(problem)
         

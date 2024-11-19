@@ -1,0 +1,31 @@
+name: Deploy to Vercel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'  
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}  # 在 GitHub Secrets 中设置 Vercel Token
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}  # 在 GitHub Secrets 中设置 Vercel Org ID
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}  # 在 GitHub Secrets 中设置 Vercel Project ID
+        run: |
+          pip install vercel
+          vercel --prod --confirm

@@ -90,6 +90,9 @@
             <label id="carry-option" style="margin-left: 20px;">
                 <input type="checkbox" id="carry"> 包含进位
             </label>
+            <label style="margin-left: 20px;">
+                <input type="checkbox" id="teen-numbers"> 十几加减几
+            </label>
             <br>
             <label>
                 <input type="checkbox" id="subtract" checked> 减法
@@ -163,6 +166,7 @@
             const type2Count = document.getElementById('type2-count').value;
             const type1Blank = document.getElementById('type1-blank').value;
             const type2Blank = document.getElementById('type2-blank').value;
+            const teenNumbers = document.getElementById('teen-numbers').checked;
 
             fetch('/generate', {
                 method: 'POST',
@@ -181,6 +185,7 @@
                     type2_count: type2Count,
                     type1_blank_ratio: type1Blank,
                     type2_blank_ratio: type2Blank,
+                    teen_numbers: teenNumbers,
                 }),
             })
             .then(response => response.json())
